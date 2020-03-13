@@ -276,20 +276,73 @@ ggplot(gather(numeric_hc), aes(value)) + geom_histogram(bins=10) + facet_wrap(~k
 ns = numSummary(numeric_hc, statistics = c("mean","sd","quantiles","skewness"))
 ns$table
 
-ggplot(feat, aes(x=YearBuilt, y=SalePrice)) + geom_col()
-ggplot(feat, aes(x=TotalBsmtSF, y=SalePrice)) + geom_smooth()
-ggplot(feat, aes(x=GrLivArea, y=SalePrice)) + geom_point() + geom_smooth()
-ggplot(feat, aes(x=TotRmsAbvGrd, y=SalePrice)) + geom_smooth() + geom_point()
-ggplot(feat, aes(x=TotRmsAbvGrd)) + geom_histogram()
-ggplot(feat, aes(GarageCars, SalePrice)) + geom_jitter()
-feat %>% select(GarageCars, SalePrice) %>% filter(GarageCars == 1) %>% summarize(mean = mean(SalePrice), sd = sd(SalePrice))
-feat %>% select(GarageCars, SalePrice) %>% filter(GarageCars == 2) %>% summarize(mean = mean(SalePrice), sd = sd(SalePrice))
-feat %>% select(GarageCars, SalePrice) %>% filter(GarageCars == 3) %>% summarize(mean = mean(SalePrice), sd = sd(SalePrice))
-feat %>% select(GarageCars, SalePrice) %>% filter(GarageCars == 4) %>% summarize(mean = mean(SalePrice), sd = sd(SalePrice))
-ggplot(feat, aes(GarageArea, SalePrice)) + geom_jitter() + geom_smooth()
+#Plot some of the more heavily skewed features
+ggplot(feat[!is.na(feat$SalePrice),], aes(SalePrice)) + geom_histogram(bins = 20)
+ggplot(feat, aes(GrLivArea)) + geom_histogram(bins = 20)
+ggplot(feat, aes(TotalBsmtSF)) + geom_histogram(bins = 20)
+ggplot(feat, aes(FirstFlrSF)) + geom_histogram(bins = 20)
 
-feat$`1stFlrSF` = log(feat$`1stFlrSF` + 1)
-feat$`2ndFlrSF` = log(feat$`2ndFlrSF` + 1)
+#See if log transforming normalizes the distribution
+ggplot(feat[!is.na(feat$SalePrice),], aes(SalePrice)) + geom_histogram(bins = 20) + scale_x_log10() + xlab('SalePrice Log Scaled')
+ggplot(feat, aes(GrLivArea)) + scale_x_log10() + geom_density() + xlab('GrLivArea Log Scaled')
+ggplot(feat, aes(TotalBsmtSF)) + geom_histogram(bins = 20) + scale_x_log10() + xlab('TotalBsmtSF Log Scaled')
+ggplot(feat, aes(FirstFlrSF)) + geom_histogram(bins = 20) + scale_x_log10() + xlab('FirstFlrSF Log Scaled')
+
+#SalePrice vs Quality Features
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=OverallQual, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=ExterQual, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=KitchenQual, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=BsmtQual, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=FireplaceQu, y=SalePrice)) + geom_col()
+
+#SalePrice vs SF features
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=TotalBsmtSF, y=SalePrice)) + geom_point() + geom_smooth()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=FirstFlrSF, y=SalePrice)) + geom_point() + geom_smooth()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=GrLivArea, y=SalePrice)) + geom_point() + geom_smooth()
+
+#SalePrice vs Room features
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=TotRmsAbvGrd, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=FullBath, y=SalePrice)) + geom_col()
+
+#SalePrice vs Garage features
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=GarageYrBlt, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=GarageArea, y=SalePrice)) + geom_point() + geom_smooth()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=GarageCars, y=SalePrice)) + geom_col()
+
+#SalePrice vs Year features
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=YearBuilt, y=SalePrice)) + geom_col()
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=YearRemodAdd, y=SalePrice)) + geom_col()
+
+#SalePrice vs Categorical features: mean/median of SalePrice for each factor in Neighborhood/MSSubClass,
+#dashed lines at the median for median plots, and mean +/- one standard deviation for mean plots.
+#Will use the mean plots to bin factors later on. 
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(Neighborhood, SalePrice, FUN=mean), y=SalePrice)) + 
+  geom_bar(stat='summary', fun.y = 'mean', fill='red') + xlab('Neighborhood') + ylab('Mean SalePrice') +
+  scale_y_continuous(breaks = seq(0, 350000, by=50000)) + 
+  geom_hline(yintercept = c(101478.7,180921.2,260363.7), linetype='dashed', color='blue') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(Neighborhood, SalePrice, FUN=median), y=SalePrice)) + 
+  geom_bar(stat='summary', fun.y = 'median', fill='red') + xlab('Neighborhood') + ylab('Med SalePrice') +
+  scale_y_continuous(breaks = seq(0, 350000, by=50000)) + 
+  geom_hline(yintercept = 163000, linetype='dashed', color='blue') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(MSSubClass, SalePrice, FUN=mean), y=SalePrice)) +
+  geom_bar(stat='summary', fun.y = 'mean', fill='red') + xlab('MSSubClass') + ylab('Mean SalePrice') +
+  scale_y_continuous(breaks = seq(0, 300000, by=50000)) +
+  geom_hline(yintercept = c(101478.7,180921.2,260363.7), linetype='dashed', color='blue') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(MSSubClass, SalePrice, FUN=median), y=SalePrice)) +
+  geom_bar(stat='summary', fun.y = 'median', fill='red') + xlab('MSSubClass') + ylab('Med SalePrice') +
+  scale_y_continuous(breaks = seq(0, 300000, by=50000)) +
+  geom_hline(yintercept = 163000, linetype='dashed', color='blue') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#Feature engineering: Log transformations of skewed numeric features
+feat$FirstFlrSF = log(feat$FirstFlrSF + 1)
+feat$SecondFlrSF = log(feat$SecondFlrSF + 1)
 feat$BsmtFinSF1 = log(feat$BsmtFinSF1 + 1)
 feat$OpenPorchSF = log(feat$OpenPorchSF + 1)
 feat$WoodDeckSF = log(feat$WoodDeckSF + 1)
@@ -298,65 +351,37 @@ feat$LotFrontage = log(feat$LotFrontage + 1)
 feat$EnclosedPorch = log(feat$EnclosedPorch + 1)
 feat$ScreenPorch = log(feat$ScreenPorch + 1)
 
-feat$`1stFlrSF` = log(feat$`1stFlrSF` + 1)
-feat$`1stFlrSF` = log(feat$`2ndFlrSF` + 1)
-feat$BsmtFinSF1 = log(feat$BsmtFinSF1 + 1)
-feat$OpenPorchSF = log(feat$OpenPorchSF + 1)
-feat$WoodDeckSF = log(feat$WoodDeckSF + 1)
-feat$LotArea = log(feat$LotArea + 1)
-feat$LotFrontage = log(feat$LotFrontage + 1)
-feat$EnclosedPorch = log(feat$EnclosedPorch + 1)
-feat$ScreenPorch = log(feat$ScreenPorch + 1)
+#Creating new features from combining existing ones: need YrSold in integer form to use in new features
+feat$YrSold = as.integer(feat$YrSold)
 
-feat = feat %>% mutate(ExterQualBin = case_when(ExterQual == 'TA' ~ "Typical/Fair", 
-                                                ExterQual == 'Fa' ~ "Typical/Fair", 
-                                                ExterQual == 'Gd' ~ "Good/Excellent",
-                                                ExterQual == 'Ex' ~ "Good/Excellent"))
+feat = feat %>% mutate(OverallScore = OverallCond * OverallQual,
+                       ExterScore = ExterQual * ExterCond,
+                       BsmtScore = BsmtQual * BsmtCond,
+                       TotalSF = TotalBsmtSF + FirstFlrSF + SecondFlrSF + LowQualFinSF,
+                       TotalArea = GrLivArea + TotalBsmtSF,
+                       TotalRooms = TotRmsAbvGrd + FullBath + +BsmtFullBath + HalfBath*0.5 + BsmtHalfBath*0.5, 
+                       TotalPorchSF = WoodDeckSF + OpenPorchSF + EnclosedPorch + ThreeSsnPorch + ScreenPorch,
+                       Age = YrSold - YearBuilt,
+                       YrsSinceRemodel = YrSold - YearRemodAdd)
 
-feat$ExterQualBin = as.factor(feat$ExterQualBin)
+#Change back to factor after using
+feat$YrSold = as.factor(feat$YrSold)
 
-feat = feat %>% mutate(BsmtQualBin = case_when(BsmtQual == 'TA' ~ "Typical/Fair",
-                                               BsmtQual == "No Basement" ~ "Typical/Fair",
-                                               BsmtQual == 'Fa' ~ "Typical/Fair",
-                                               BsmtQual == 'Gd' ~ "Good/Excellent",
-                                               BsmtQual == 'Ex' ~ "Good/Excellent"))
-feat$BsmtQualBin = as.factor(feat$BsmtQualBin)
+#Binning categorical features: Quick gradient boost model to check variable importance of categoricals
+gboost = gbm(SalePrice ~. -Id, distribution = "gaussian", data=trainclean, n.trees = 10000, interaction.depth = 4, shrinkage = 0.01)
 
-feat = feat %>% mutate(KitchenQualBin = case_when(KitchenQual == 'TA' ~ "Typical/Fair",
-                                                  KitchenQual == 'Fa' ~ "Typical/Fair",
-                                                  KitchenQual == 'Gd' ~ "Good/Excellent",
-                                                  KitchenQual == 'Ex' ~ "Good/Excellent"))
-feat$KitchenQualBin = as.factor(feat$KitchenQualBin)
+#Most relevant: Neighborhood, MoSold, MSSubClass.
 
-feat = feat %>% mutate(GarageQualBin = case_when(GarageQual == 'No Garage' ~ "Poor",
-                                                 GarageQual == 'Po' ~ "Poor",
-                                                 GarageQual == 'TA' ~ "Typical/Fair",
-                                                 GarageQual == 'Fa' ~ "Typical/Fair",
-                                                 GarageQual == 'Gd' ~ "Good/Excellent",
-                                                 GarageQual == 'Ex' ~ "Good/Excellent"))
-feat$GarageQualBin = as.factor(feat$GarageQualBin)
+#Neighborhood looks like it can be binned using 4 cuts. There are 3 neighborhoods that are significantly
+#"richer" than other neighborhoods according to both the median and mean plots: NridgHt, NoRidge, and StoneBr.
+#Conversely, there are 3 neighborhoods significantly below the median/mean: MeadowV, IDOTRR, and BRDale. The
+#former exceeding 1 standard deviation above the mean and the latter exceeding 1 standard deviation below
+#the mean, or extremely close to exceeding it. The remaining neighborhoods below the mean, but not less than
+#1 full standard deviation below can be binned together, and the same for those above the mean, but not more
+#than a full standard deviation. 
 
-feat = feat %>% mutate(ExterQualBin = fct_relevel(ExterQualBin, "Typical/Fair", "Good/Excellent"),
-                       BsmtQualBin = fct_relevel(BsmtQualBin, "Typical/Fair", "Good/Excellent"),
-                       KitchenQualBin = fct_relevel(KitchenQualBin, "Typical/Fair", "Good/Excellent"),
-                       GarageQualBin = fct_relevel(GarageQualBin, "Typical/Fair", "Good/Excellent"))
-
-
-feat = feat %>% mutate(OverallScore = OverallCond * OverallQual, 
-                       TotalSF = TotalBsmtSF + FirstFlrSF + SecondFlrSF + LowQualFinSF, 
-                       TotalRooms = TotRmsAbvGrd + FullBath + HalfBath, 
-                       TotalPorchSF = WoodDeckSF + OpenPorchSF + EnclosedPorch + ThreeSsnPorch + ScreenPorch)
-
-feat= feat %>% mutate(OverallScore = OverallCond * OverallQual, 
-                      TotalSF = TotalBsmtSF + FirstFlrSF + SecondFlrSF + LowQualFinSF, 
-                      TotalRooms = TotRmsAbvGrd + FullBath + HalfBath, 
-                      TotalPorchSF = WoodDeckSF + OpenPorchSF + EnclosedPorch + ThreeSsnPorch + ScreenPorch)
-
-feat2 = rbind(feat, feat)
-featclean = cbind(feat2, feat) %>% as_tibble()
-
-trainclean = featclean %>% filter(Id <= 1460) 
-testclean = featclean %>% filter(Id > 1460) 
+trainclean = feat %>% filter(Id <= 1460) 
+testclean = feat %>% filter(Id > 1460) 
 
 rf = randomForest(SalePrice ~. -Id, data=trainclean)
 cart = rpart(SalePrice ~. -Id, data=trainclean)
