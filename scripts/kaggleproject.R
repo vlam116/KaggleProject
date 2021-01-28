@@ -1,30 +1,13 @@
 #Loading necessary packages
-library(caret)
-library(caTools)
-library(class)
-library(plyr)
-library(dplyr)
-library(gplots)
-library(mice)
-library(missForest)
-library(ROCR)
-library(rpart)
-library(rpart.plot)
-library(tibble)
-library(tidyverse)
-library(corrplot)
-library(RcmdrMisc)
-library(gbm)
-library(glmnet)
-library(xgboost)
 
+library(caret);library(class);library(dplyr);library(randomForest)
+library(rpart);library(corrplot);library(RcmdrMisc);library(gbm)
+library(glmnet);library(xgboost);library(tidyr);library(plyr);library(readr)
 
 ################## LOADING IN DATA AND PRELIMINARY PREPARATIONS #######################
 
-
-setwd("C:\Users\Lam\Desktop\R Scripts\KaggleProject")
-training = as_tibble(read_csv("kaggletrain.csv"))
-testing = as_tibble(read_csv("kaggletest.csv"))
+training = as_tibble(read_csv("train.csv"))
+testing = as_tibble(read_csv("test.csv"))
 
 #Create column for SalePrice in testing set, fill in with NA and combine training and testing set into one for cleaning
 testing$SalePrice = rep(NA, 1459)
@@ -329,25 +312,25 @@ ggplot(feat[!is.na(feat$SalePrice),], aes(x=YearRemodAdd, y=SalePrice)) + geom_c
 #dashed lines at the median for median plots, and mean +/- one standard deviation for mean plots.
 #Will use the mean plots to bin factors later on. 
 ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(Neighborhood, SalePrice, FUN=mean), y=SalePrice)) + 
-  geom_bar(stat="summary", fun.y = "mean", fill="red") + xlab("Neighborhood") + ylab("Mean SalePrice") +
+  geom_bar(stat="summary", fun = "mean", fill="red") + xlab("Neighborhood") + ylab("Mean SalePrice") +
   scale_y_continuous(breaks = seq(0, 350000, by=50000)) + 
   geom_hline(yintercept = c(101478.7,180921.2,260363.7), linetype="dashed", color="blue") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(Neighborhood, SalePrice, FUN=median), y=SalePrice)) + 
-  geom_bar(stat="summary", fun.y = "median", fill="red") + xlab("Neighborhood") + ylab("Med SalePrice") +
+  geom_bar(stat="summary", fun = "median", fill="red") + xlab("Neighborhood") + ylab("Med SalePrice") +
   scale_y_continuous(breaks = seq(0, 350000, by=50000)) + 
   geom_hline(yintercept = 163000, linetype="dashed", color="blue") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(MSSubClass, SalePrice, FUN=mean), y=SalePrice)) +
-  geom_bar(stat="summary", fun.y = "mean", fill="red") + xlab("MSSubClass") + ylab("Mean SalePrice") +
+  geom_bar(stat="summary", fun = "mean", fill="red") + xlab("MSSubClass") + ylab("Mean SalePrice") +
   scale_y_continuous(breaks = seq(0, 300000, by=50000)) +
   geom_hline(yintercept = c(101478.7,180921.2,260363.7), linetype="dashed", color="blue") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggplot(feat[!is.na(feat$SalePrice),], aes(x=reorder(MSSubClass, SalePrice, FUN=median), y=SalePrice)) +
-  geom_bar(stat="summary", fun.y = "median", fill="red") + xlab("MSSubClass") + ylab("Med SalePrice") +
+  geom_bar(stat="summary", fun = "median", fill="red") + xlab("MSSubClass") + ylab("Med SalePrice") +
   scale_y_continuous(breaks = seq(0, 300000, by=50000)) +
   geom_hline(yintercept = 163000, linetype="dashed", color="blue") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -413,23 +396,12 @@ feat$NeighborhoodType = as.integer(revalue(feat$NeighborhoodType, c("MeadowV" = 
 varsToDrop = c('GarageArea','TotalBsmtSF','TotRmsAbvGrd','GarageYrBlt','KitchenQual','YearRemodAdd')
 feat = feat[,!names(feat) %in% varsToDrop]
 
-#Dealing with skewness by normalizing predictors: will use the summary 
+#Preprocessing numeric features using caret preProcess, removing encoded categorical features
 num = select_if(feat, is.numeric)
 num = within(num, rm("LotShape","LandContour","Utilities","LandSlope","ExterQual","ExterCond",
 "BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","HeatingQC","CentralAir",
 "Electrical","Functional","FireplaceQu","GarageFinish","GarageQual","GarageCond",
 "PavedDrive","PoolQC","Fence","ExterScore","BsmtScore","NeighborhoodType","SalePrice"))
-
-#Log+1 transform skewed predictors (~ +/- 0.8 skewness)
-num$FirstFlrSF = log(num$FirstFlrSF + 1)
-num$SecondFlrSF = log(num$SecondFlrSF + 1)
-num$BsmtFinSF1 = log(num$BsmtFinSF1 + 1)
-num$OpenPorchSF = log(num$OpenPorchSF + 1)
-num$WoodDeckSF = log(num$WoodDeckSF + 1)
-num$LotArea = log(num$LotArea + 1)
-num$LotFrontage = log(num$LotFrontage + 1)
-num$EnclosedPorch = log(num$EnclosedPorch + 1)
-num$ScreenPorch = log(num$ScreenPorch + 1)
 
 preproc = preProcess(num, method = c("center","scale"))
 normalized = predict(preproc, num)
@@ -468,11 +440,14 @@ trainclean = featclean[!is.na(feat$SalePrice),]
 testclean = featclean[is.na(feat$SalePrice),]
 
 #Gradient boosting algorithm, requires target variable in same training set data frame as predictors
+#Also ensuring variable names are legal, some models throw an error otherwise
 set.seed(1106)
 featclean1 = rbind(trainclean, testclean)
 featclean1$SalePrice = feat$SalePrice
 trainclean1 = featclean1[!is.na(featclean1$SalePrice),]
-#testclean1 = featclean1[is.na(featclean1$SalePrice),]
+testclean1 = featclean1[is.na(featclean1$SalePrice),]
+names(trainclean1) = make.names(names(trainclean1))
+names(testclean1) = make.names(names(testclean1))
 
 gboost = gbm(SalePrice~., distribution = "gaussian", data=trainclean1, 
              n.trees = 10000, interaction.depth = 4, shrinkage = 0.01)
@@ -531,23 +506,11 @@ elasticPredPrices = exp(elasticPred)
 head(elasticPredPrices)
 
 #XGBoost
-xgbGrid = expand.grid(nrounds = 1000, 
-                      eta = c(0.1, 0.05, 0.01),
-                      max_depth = c(1, 2, 3, 4, 5), 
-                      gamma = 0,
-                      colsample_bytree = 1, 
-                      min_child_weight=c(1, 2, 3, 4, 5),
-                      subsample = 1)
-
-xgb_caret = train(x=trainclean, y=feat$SalePrice[!is.na(feat$SalePrice)], method = 'xgbTree',
-                  trControl = mc, tuneGrid = xgbGrid)
-xgb_caret$bestTune
-
 labeltrain = feat$SalePrice[!is.na(feat$SalePrice)]
 dtrain = xgb.DMatrix(data = as.matrix(trainclean), label = labeltrain)
 dtest = xgb.DMatrix(data = as.matrix(testclean))
 
-bestparams = list(objective = "reg:linear",
+bestparams = list(objective = "reg:squarederror",
                   booster = "gbtree",
                   eta = 0.1,
                   gamma = 0,
