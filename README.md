@@ -3,7 +3,7 @@
 
 ## Overview
 
-This repository contains the code used for my submission in Kaggle's ongoing predictive analytics [competition](https://www.kaggle.com/c/house-prices-advanced-regression-techniques). The goal is to predict missing house prices from a test set by training a machine learning model on a training set containing 2900 observations and 79 predictors, ranging from numeric to categorical. The four main data science related tasks performed in my project include cleaning data, exploratory data analysis, feature engineering, and fitting machine learning models. 
+This repository contains the code used for my submission in Kaggle's ongoing predictive analytics [competition](https://www.kaggle.com/c/house-prices-advanced-regression-techniques). The goal is to predict missing house prices from a test set by training a machine learning model on a training set containing 1460 observations and 79 predictors, ranging from numeric to categorical. The four main tasks performed in my project include cleaning data, exploratory data analysis, feature engineering, and fitting machine learning models. 
 
 ## Software and Packages Used
 * R v4.0.2, RStudio v1.3.1056
