@@ -451,21 +451,24 @@ names(testclean1) = make.names(names(testclean1))
 
 gboost = gbm(SalePrice~., distribution = "gaussian", data=trainclean1, 
              n.trees = 10000, interaction.depth = 4, shrinkage = 0.01)
-gbpred = predict(gboost, newdata=testclean, n.trees = 10000)
+gbpred = predict(gboost, newdata=testclean1, n.trees = 10000)
 gboostPredPrices = exp(gbpred)
 head(gboostPredPrices)
 
 #Random Forest algorithm
 rf = randomForest(SalePrice ~., ntree = 10000, importance = TRUE, data=trainclean1)
 rfpred = predict(rf, newdata=testclean1)
+rfImp = importance(rf)
 rfPredPrices = exp(rfpred)
 head(rfPredPrices)
 
 #Lasso Regression
-mc = trainControl(method="cv", number=5)
+mc = trainControl(method="cv", number=5, summaryFunction = defaultSummary)
 lassoGrid = expand.grid(alpha = 1, lambda = seq(0.001,0.1,by = 0.0005))
 lasso_mod = train(x=trainclean, y=feat$SalePrice[!is.na(feat$SalePrice)], method='glmnet', 
                   trControl = mc, tuneGrid=lassoGrid)
+lasso_mod
+ggplot(lasso_mod)
 lasso_mod$bestTune
 lassoVI = varImp(lasso_mod,scale=F)
 lassoImp = lassoVI$importance
